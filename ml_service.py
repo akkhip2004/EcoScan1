@@ -1,5 +1,4 @@
 # ml_service.py
-
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
@@ -82,4 +81,5 @@ async def classify_image(file: UploadFile = File(...)):
     except Exception as e:
         # Catch all exceptions and return a proper HTTP error
         raise HTTPException(status_code=500, detail=f"An error occurred during prediction: {e}")
+
 
