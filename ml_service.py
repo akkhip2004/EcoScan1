@@ -1,10 +1,11 @@
 # ml_service.py
 
 from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
 import torch, io, os
 from torchvision import models, transforms
-import gdown  # Add this to requirements.txt
+import gdown  # ensure 'gdown' is in requirements.txt
 
 # ---------------------- Configuration ----------------------
 CLASS_NAMES = ['cardboard', 'glass', 'metal', 'paper', 'plastic', 'trash']
@@ -40,6 +41,14 @@ except Exception as e:
 # ---------------------- FastAPI App ----------------------
 app = FastAPI(title="Waste Classifier API", description="Upload an image and get waste classification")
 
+# Enable CORS for backend connection
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # allow your backend domain if needed
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
+
 @app.get("/")
 async def root():
     return {"message": "Waste Classifier API is running. Use /docs to test."}
@@ -47,6 +56,10 @@ async def root():
 @app.post("/classify_image")
 async def classify_image(file: UploadFile = File(...)):
     try:
+        # Ensure file is uploaded
+        if not file.filename:
+            raise HTTPException(status_code=400, detail="No file uploaded.")
+
         # Read and preprocess image
         image_bytes = await file.read()
         image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
@@ -62,8 +75,11 @@ async def classify_image(file: UploadFile = File(...)):
         # Return prediction and probabilities
         return {
             "prediction": predicted_class,
+            "confidence": float(probs[0, pred_idx]),
             "probabilities": {cls: float(prob) for cls, prob in zip(CLASS_NAMES, probs.squeeze())}
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
+        # Catch all exceptions and return a proper HTTP error
+        raise HTTPException(status_code=500, detail=f"An error occurred during prediction: {e}")
+
